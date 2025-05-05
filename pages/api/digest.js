@@ -1,66 +1,37 @@
-import { useEffect, useState } from 'react';
-import { fetchNews } from '../utils/fetchNews';
+// pages/api/digest.js
 
-export default function Digest() {
-  const [digest, setDigest] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Метод не поддерживается' });
+  }
 
-  useEffect(() => {
-    const getDigest = async () => {
-      setLoading(true);
-      const news = await fetchNews(); // по умолчанию категория 'general'
-      const topNews = news.slice(0, 7); // первые 7 новостей
+  const { articles } = req.body;
 
-      const summaries = await Promise.all(
-        topNews.map(async article => {
-          try {
-            const res = await fetch('/api/summary', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ content: article.text }),
-            });
-            const data = await res.json();
-            return { ...article, summary: data.summary };
-          } catch {
-            return { ...article, summary: 'Ошибка при генерации резюме' };
-          }
-        })
-      );
+  const summaries = await Promise.all(
+    articles.map(async (article) => {
+      const prompt = `Сделай краткое резюме следующей новости: ${article.title} - ${article.description || article.content}`;
+      try {
+        const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: 'mistral-small-latest',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.5,
+          }),
+        });
 
-      setDigest(summaries);
-      setLoading(false);
-    };
-
-    getDigest();
-  }, []);
-
-  return (
-    <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">📰 Утренний AI-дайджест</h1>
-
-      {loading ? (
-        <p>Загрузка...</p>
-      ) : (
-        <div className="space-y-6">
-          {digest.map((article, idx) => (
-            <div key={idx} className="border p-4 rounded shadow">
-              <h2 className="text-xl font-semibold">{article.title}</h2>
-              <p className="text-sm text-gray-600 mb-2">
-                {new Date(article.publish_date).toLocaleDateString()}
-              </p>
-              <p className="text-gray-700 mb-2">{article.summary}</p>
-              <a
-                href={article.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 underline"
-              >
-                Читать полностью →
-              </a>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+        const data = await response.json();
+        return data.choices?.[0]?.message?.content || 'Не удалось получить резюме.';
+      } catch (error) {
+        console.error('Ошибка при обращении к Mistral:', error);
+        return 'Ошибка при получении резюме.';
+      }
+    })
   );
+
+  res.status(200).json({ summaries });
 }
