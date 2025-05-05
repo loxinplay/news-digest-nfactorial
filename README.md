@@ -3,7 +3,7 @@ News Digest — это веб-приложение, которое предос�
 ## 🚀 Демо
 
 🔗 Деплой: [https://news-digest-nfactorial-btos.vercel.app/](https://news-digest-nfactorial.vercel.app)  
-🎥 Видео-демо: [ссылка на Loom / YouTube / др.](#)
+🎥 Видео-демо: [YouTube](https://youtu.be/1P_GqOvHCIk)
 
 ---
 
